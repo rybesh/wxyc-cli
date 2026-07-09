@@ -5,10 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/rybesh/wxyc-cli/internal/auth"
 	"github.com/rybesh/wxyc-cli/internal/safety"
 )
 
@@ -95,6 +98,44 @@ func TestRotation_JSONKeepsFullShape(t *testing.T) {
 	// Nested identity the table never renders must survive in --json.
 	if !strings.Contains(out, "reconciled_identity") || !strings.Contains(out, "42") {
 		t.Errorf("--json dropped nested fields:\n%s", out)
+	}
+}
+
+func TestLoginDevice_StoresSessionToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/auth/device/code":
+			w.Write([]byte(`{"device_code":"d","user_code":"WXYC-9999",` +
+				`"verification_uri":"https://dj.wxyc.org/device-auth","expires_in":300,"interval":5}`))
+		case "/auth/device/token":
+			// Approve on the first poll so no sleep occurs.
+			w.Write([]byte(`{"access_token":"sess-device-xyz","token_type":"Bearer","expires_in":43200}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	// Isolate the credential store to a temp dir (file fallback; no keychain).
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("WXYC_API_URL", srv.URL)
+
+	out, err := runCLI(t, "login", "--device")
+	if err != nil {
+		t.Fatalf("login --device err = %v", err)
+	}
+	if !strings.Contains(out, "signed in") {
+		t.Errorf("stdout = %q, want success line", out)
+	}
+
+	// The device session token must be persisted for the default profile.
+	got, err := auth.FileStore{Dir: filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "wxyc-cli")}.Load("default")
+	if err != nil {
+		t.Fatalf("session not stored: %v", err)
+	}
+	if got != "sess-device-xyz" {
+		t.Errorf("stored token = %q, want sess-device-xyz", got)
 	}
 }
 

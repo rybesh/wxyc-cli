@@ -15,6 +15,7 @@ go build -o wxyc .
 
 ```sh
 wxyc login                       # prompts for email/username + password (hidden)
+wxyc login --device              # QR sign-in: approve from the WXYC iOS app, no password
 wxyc whoami                      # shows your identity and role
 
 wxyc library search --artist "aphex twin"
@@ -40,6 +41,14 @@ Your **password is never stored**. `login` exchanges it once for a long-lived
 available). Every request transparently exchanges that session token for a
 short-lived signed JWT and refreshes on expiry. This mirrors the two-call
 handshake the website uses: `POST /auth/sign-in/*` → `GET /auth/token`.
+
+**QR / device sign-in (`--device`)** — for a shared machine, or an agent that
+should never touch a password: `wxyc login --device` requests a device code
+(RFC 8628), renders a scannable QR plus the `user_code` in the terminal, and
+polls until you approve the sign-in from the WXYC iOS app (approval is gated to
+DJs+). The resulting session is server-capped to 12h. The `client_id` defaults
+to `wxyc-cli`; override with `WXYC_DEVICE_CLIENT_ID` if the deployment ever
+enables client validation.
 
 An agent or CI job that manages its own token can skip the keychain entirely by
 exporting a JWT directly:
@@ -86,10 +95,7 @@ catalog writes regardless — the server returns 403.
 
 ## Roadmap
 
-- **v2 auth:** device-authorization (QR) sign-in — no password in the CLI at
-  all; approve from the iOS app. The `SignInStrategy` interface is already in
-  place for it.
-- OIDC + PKCE as a registered trusted client.
+- OIDC + PKCE as a registered trusted client (the third `SignInStrategy`).
 - Remaining read surface (`djs playlists`, label/genre detail).
 
 ## Development
