@@ -46,6 +46,40 @@ func TestRenderer_Table(t *testing.T) {
 	}
 }
 
+func TestRenderer_TableTruncatesLongCells(t *testing.T) {
+	var buf bytes.Buffer
+	r := Renderer{JSON: false, Out: &buf}
+	long := strings.Repeat("x", 200)
+	if err := r.Emit(nil, []string{"ARTIST"}, [][]string{{long}, {"short"}}); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	// No single line should be anywhere near the untruncated 200 chars.
+	for _, line := range strings.Split(strings.TrimRight(got, "\n"), "\n") {
+		if len([]rune(line)) > maxCellWidth+8 { // +slack for padding/other cols
+			t.Errorf("line not truncated (%d runes): %q", len([]rune(line)), line)
+		}
+	}
+	if !strings.Contains(got, "…") {
+		t.Errorf("truncated cell should carry an ellipsis:\n%s", got)
+	}
+	if !strings.Contains(got, "short") {
+		t.Errorf("short cell should be intact:\n%s", got)
+	}
+}
+
+func TestRenderer_JSONNotTruncated(t *testing.T) {
+	var buf bytes.Buffer
+	r := Renderer{JSON: true, Out: &buf}
+	long := strings.Repeat("x", 200)
+	if err := r.EmitRaw([]byte(`[{"a":"`+long+`"}]`), []string{"A"}, [][]string{{long}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), long) {
+		t.Errorf("--json must not truncate values")
+	}
+}
+
 func TestRenderer_EmptyTable(t *testing.T) {
 	var buf bytes.Buffer
 	r := Renderer{JSON: false, Out: &buf}

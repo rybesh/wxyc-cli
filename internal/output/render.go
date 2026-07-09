@@ -65,7 +65,22 @@ func writeRow(w io.Writer, cells []string) {
 		if i > 0 {
 			fmt.Fprint(w, "\t")
 		}
-		fmt.Fprint(w, c)
+		fmt.Fprint(w, truncate(c))
 	}
 	fmt.Fprintln(w)
+}
+
+// maxCellWidth caps a table cell's display width. tabwriter pads every cell in
+// a column to the widest one, so a single long value (e.g. a run-on artist
+// name) would otherwise bloat the whole table with trailing whitespace. Only
+// the table view truncates; --json is always full-fidelity.
+const maxCellWidth = 48
+
+// truncate shortens s to maxCellWidth runes, marking the cut with an ellipsis.
+func truncate(s string) string {
+	r := []rune(s)
+	if len(r) <= maxCellWidth {
+		return s
+	}
+	return string(r[:maxCellWidth-1]) + "…"
 }
