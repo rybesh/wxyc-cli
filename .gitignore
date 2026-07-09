@@ -1,0 +1,7 @@
+# Build output
+/wxyc
+/dist/
+
+# Local env
+*.token
+.env
