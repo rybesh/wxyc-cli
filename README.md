@@ -7,8 +7,8 @@ dj.wxyc.org credentials.
 ## Install
 
 ```sh
-go build -o wxyc .
-# or: go install github.com/rybesh/wxyc-cli@latest
+go build -o wxyc ./cmd/wxyc
+# or: go install github.com/rybesh/wxyc-cli/cmd/wxyc@latest
 ```
 
 ## Quick start
