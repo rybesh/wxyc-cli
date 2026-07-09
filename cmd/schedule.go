@@ -14,7 +14,7 @@ func newScheduleCmd(app *App) *cobra.Command {
 		Short: "Show the recurring show schedule",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			entries, err := app.client.Schedule(cmd.Context())
+			entries, raw, err := app.client.Schedule(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -26,7 +26,7 @@ func newScheduleCmd(app *App) *cobra.Command {
 				}
 				rows = append(rows, []string{day, e.StartTime, strconv.Itoa(e.ShowDuration) + "m"})
 			}
-			return app.render.Emit(entries, []string{"DAY", "START", "DURATION"}, rows)
+			return app.render.EmitRaw(raw, []string{"DAY", "START", "DURATION"}, rows)
 		},
 	}
 }

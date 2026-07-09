@@ -19,11 +19,11 @@ func newLabelsListCmd(app *App) *cobra.Command {
 		Short: "List all record labels",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			labels, err := app.client.Labels(cmd.Context())
+			labels, raw, err := app.client.Labels(cmd.Context())
 			if err != nil {
 				return err
 			}
-			return app.render.Emit(labels, []string{"ID", "LABEL"}, labelRows(labels))
+			return app.render.EmitRaw(raw, []string{"ID", "LABEL"}, labelRows(labels))
 		},
 	}
 }
@@ -35,11 +35,11 @@ func newLabelsSearchCmd(app *App) *cobra.Command {
 		Short: "Search record labels by name",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			labels, err := app.client.LabelSearch(cmd.Context(), args[0], limit)
+			labels, raw, err := app.client.LabelSearch(cmd.Context(), args[0], limit)
 			if err != nil {
 				return err
 			}
-			return app.render.Emit(labels, []string{"ID", "LABEL"}, labelRows(labels))
+			return app.render.EmitRaw(raw, []string{"ID", "LABEL"}, labelRows(labels))
 		},
 	}
 	cmd.Flags().IntVarP(&limit, "limit", "n", 10, "max results")

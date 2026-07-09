@@ -28,7 +28,10 @@ wxyc schedule
 wxyc bin list
 ```
 
-Add `--json` to any command for machine-readable output.
+Add `--json` to any command for machine-readable output. The rule is uniform:
+**the table is a curated projection; `--json` is the API's response verbatim**
+(byte-for-byte, including fields the table doesn't show), so an agent never
+misses a field the CLI didn't bother to model.
 
 ## Auth model
 

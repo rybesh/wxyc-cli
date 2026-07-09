@@ -37,39 +37,28 @@ func (e *StatusError) Error() string {
 	return fmt.Sprintf("%s: HTTP %d: %s", e.Path, e.Code, msg)
 }
 
-func (c *Client) get(ctx context.Context, path string, query map[string]string, out any) error {
-	u := c.BaseURL + path
-	if len(query) > 0 {
-		vals := url.Values{}
-		for k, v := range query {
-			vals.Set(k, v)
+// getInto fetches path, returns the response body verbatim, and (when out is
+// non-nil) decodes a copy into out. Read commands use the raw return for
+// --json passthrough and the decoded copy to build the human table, so the two
+// views never drift and no server field is silently dropped from --json.
+func (c *Client) getInto(ctx context.Context, path string, query map[string]string, out any) ([]byte, error) {
+	raw, err := c.getRaw(ctx, path, query)
+	if err != nil {
+		return nil, err
+	}
+	if out != nil {
+		if err := json.Unmarshal(raw, out); err != nil {
+			return raw, fmt.Errorf("%s: decoding response: %w", path, err)
 		}
-		u += "?" + vals.Encode()
 	}
+	return raw, nil
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-
-	res, err := c.HTTP.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(res.Body, 1024))
-		return &StatusError{Code: res.StatusCode, Path: path, Body: string(body)}
-	}
-	if out == nil {
-		return nil
-	}
-	if err := json.NewDecoder(res.Body).Decode(out); err != nil {
-		return fmt.Errorf("%s: decoding response: %w", path, err)
-	}
-	return nil
+// get decodes the response into out, discarding the raw bytes. Retained for
+// callers that don't need --json passthrough.
+func (c *Client) get(ctx context.Context, path string, query map[string]string, out any) error {
+	_, err := c.getInto(ctx, path, query, out)
+	return err
 }
 
 // getRaw is like get but returns the response body verbatim, for endpoints

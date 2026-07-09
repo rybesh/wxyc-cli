@@ -2,13 +2,12 @@ package api
 
 import "context"
 
-// Bin returns the albums in the authenticated DJ's bin.
-func (c *Client) Bin(ctx context.Context) ([]BinItem, error) {
+// Bin returns the albums in the authenticated DJ's bin, plus the raw JSON for
+// --json passthrough.
+func (c *Client) Bin(ctx context.Context) ([]BinItem, []byte, error) {
 	var items []BinItem
-	if err := c.get(ctx, "/djs/bin", nil, &items); err != nil {
-		return nil, err
-	}
-	return items, nil
+	raw, err := c.getInto(ctx, "/djs/bin", nil, &items)
+	return items, raw, err
 }
 
 // BinAdd saves an album to the DJ's bin. Mutating: gated behind --write.

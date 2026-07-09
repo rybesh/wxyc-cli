@@ -23,15 +23,21 @@ func serve(t *testing.T, wantPath string, body string, capture *string) *httptes
 }
 
 func TestGenres(t *testing.T) {
-	srv := serve(t, "/library/genres", `[{"id":1,"genre_name":"Africa","plays":3}]`, nil)
+	// last_modified is not modeled on Genre; it must still survive in raw.
+	body := `[{"id":1,"genre_name":"Africa","plays":3,"last_modified":"2026-01-20T00:34:25.969Z"}]`
+	srv := serve(t, "/library/genres", body, nil)
 	defer srv.Close()
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	g, err := c.Genres(context.Background())
+	g, raw, err := c.Genres(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(g) != 1 || g[0].GenreName != "Africa" || g[0].Plays != 3 {
-		t.Errorf("got %+v", g)
+		t.Errorf("decoded %+v", g)
+	}
+	// Fidelity guarantee: raw carries the unmodeled field for --json.
+	if !strings.Contains(string(raw), "last_modified") {
+		t.Errorf("raw dropped unmodeled field: %s", raw)
 	}
 }
 
@@ -39,7 +45,7 @@ func TestFormats(t *testing.T) {
 	srv := serve(t, "/library/formats", `[{"id":3,"format_name":"vinyl"}]`, nil)
 	defer srv.Close()
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	f, err := c.Formats(context.Background())
+	f, _, err := c.Formats(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +58,7 @@ func TestLabelsAndSearch(t *testing.T) {
 	srv := serve(t, "/labels", `[{"id":7,"label_name":"June Appal"}]`, nil)
 	defer srv.Close()
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	l, err := c.Labels(context.Background())
+	l, _, err := c.Labels(context.Background())
 	if err != nil || len(l) != 1 || l[0].LabelName != "June Appal" {
 		t.Fatalf("Labels got %+v err %v", l, err)
 	}
@@ -61,7 +67,7 @@ func TestLabelsAndSearch(t *testing.T) {
 	ssrv := serve(t, "/labels/search", `[{"id":7,"label_name":"June Appal"}]`, &q)
 	defer ssrv.Close()
 	sc := &Client{BaseURL: ssrv.URL, HTTP: ssrv.Client()}
-	if _, err := sc.LabelSearch(context.Background(), "appal", 5); err != nil {
+	if _, _, err := sc.LabelSearch(context.Background(), "appal", 5); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(q, "q=appal") || !strings.Contains(q, "limit=5") {
@@ -73,7 +79,7 @@ func TestSchedule(t *testing.T) {
 	srv := serve(t, "/schedule", `[{"id":1,"day":1,"start_time":"08:00","show_duration":120}]`, nil)
 	defer srv.Close()
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	s, err := c.Schedule(context.Background())
+	s, _, err := c.Schedule(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -26,7 +26,7 @@ func newGenresCmd(app *App) *cobra.Command {
 		Short: "List the genre catalog",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			genres, err := app.client.Genres(cmd.Context())
+			genres, raw, err := app.client.Genres(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -37,7 +37,7 @@ func newGenresCmd(app *App) *cobra.Command {
 			for _, g := range genres {
 				rows = append(rows, []string{strconv.Itoa(g.ID), g.GenreName})
 			}
-			return app.render.Emit(genres, []string{"ID", "GENRE"}, rows)
+			return app.render.EmitRaw(raw, []string{"ID", "GENRE"}, rows)
 		},
 	}
 }
@@ -48,7 +48,7 @@ func newFormatsCmd(app *App) *cobra.Command {
 		Short: "List the media formats",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			formats, err := app.client.Formats(cmd.Context())
+			formats, raw, err := app.client.Formats(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -56,7 +56,7 @@ func newFormatsCmd(app *App) *cobra.Command {
 			for _, f := range formats {
 				rows = append(rows, []string{strconv.Itoa(f.ID), f.FormatName})
 			}
-			return app.render.Emit(formats, []string{"ID", "FORMAT"}, rows)
+			return app.render.EmitRaw(raw, []string{"ID", "FORMAT"}, rows)
 		},
 	}
 }
@@ -126,11 +126,11 @@ func newLibrarySearchCmd(app *App) *cobra.Command {
 			if n > 0 {
 				params["n"] = strconv.Itoa(n)
 			}
-			albums, err := app.client.LibrarySearch(cmd.Context(), params)
+			albums, raw, err := app.client.LibrarySearch(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
-			return app.render.Emit(albums, []string{"ID", "ARTIST", "ALBUM", "FORMAT"}, albumRows(albums))
+			return app.render.EmitRaw(raw, []string{"ID", "ARTIST", "ALBUM", "FORMAT"}, albumRows(albums))
 		},
 	}
 	cmd.Flags().StringVar(&artist, "artist", "", "artist name")

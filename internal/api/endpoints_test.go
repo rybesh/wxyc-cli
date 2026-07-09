@@ -20,7 +20,7 @@ func TestLibrarySearch(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	albums, err := c.LibrarySearch(context.Background(), map[string]string{"artist_name": "aphex"})
+	albums, _, err := c.LibrarySearch(context.Background(), map[string]string{"artist_name": "aphex"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestFlowsheet_UnwrapsEntries(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	entries, err := c.Flowsheet(context.Background(), 5)
+	entries, _, err := c.Flowsheet(context.Background(), 5)
 	if err != nil {
 		t.Fatal(err)
 	}

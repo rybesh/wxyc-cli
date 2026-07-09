@@ -18,11 +18,11 @@ func newFlowsheetTailCmd(app *App) *cobra.Command {
 		Short: "Show the most recent flowsheet entries",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			entries, err := app.client.Flowsheet(cmd.Context(), n)
+			entries, raw, err := app.client.Flowsheet(cmd.Context(), n)
 			if err != nil {
 				return err
 			}
-			return app.render.Emit(entries, []string{"TYPE", "ARTIST", "TRACK", "ALBUM"}, entryRows(entries))
+			return app.render.EmitRaw(raw, []string{"TYPE", "ARTIST", "TRACK", "ALBUM"}, entryRows(entries))
 		},
 	}
 	cmd.Flags().IntVarP(&n, "limit", "n", 10, "number of entries")

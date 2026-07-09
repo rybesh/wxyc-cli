@@ -20,7 +20,7 @@ func TestBin_List(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
-	items, err := c.Bin(context.Background())
+	items, _, err := c.Bin(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

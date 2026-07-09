@@ -20,11 +20,11 @@ func newBinListCmd(app *App) *cobra.Command {
 		Short: "List albums in your bin",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			items, err := app.client.Bin(cmd.Context())
+			items, raw, err := app.client.Bin(cmd.Context())
 			if err != nil {
 				return err
 			}
-			return app.render.Emit(items, []string{"ALBUM_ID", "ARTIST", "ALBUM"}, binRows(items))
+			return app.render.EmitRaw(raw, []string{"ALBUM_ID", "ARTIST", "ALBUM"}, binRows(items))
 		},
 	}
 }
