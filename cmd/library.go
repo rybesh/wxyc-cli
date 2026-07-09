@@ -30,11 +30,14 @@ func newGenresCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// The API's genre `plays` is a dead legacy counter (always 0;
+			// BS#1486), so it is omitted from the table. The raw field is
+			// still passed through in --json.
 			rows := make([][]string, 0, len(genres))
 			for _, g := range genres {
-				rows = append(rows, []string{strconv.Itoa(g.ID), g.GenreName, strconv.Itoa(g.Plays)})
+				rows = append(rows, []string{strconv.Itoa(g.ID), g.GenreName})
 			}
-			return app.render.Emit(genres, []string{"ID", "GENRE", "PLAYS"}, rows)
+			return app.render.Emit(genres, []string{"ID", "GENRE"}, rows)
 		},
 	}
 }
