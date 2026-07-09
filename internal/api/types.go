@@ -69,6 +69,24 @@ type Label struct {
 	ParentLabelID *int   `json:"parent_label_id"`
 }
 
+// Playlist is one past show a DJ was on, as returned by /djs/playlists. The
+// server caps Preview at the show's first few flowsheet entries (in play order,
+// message rows excluded); there is no endpoint for a show's full track list.
+type Playlist struct {
+	Show          int              `json:"show"`
+	ShowName      string           `json:"show_name"`
+	Date          string           `json:"date"`
+	DJs           []PlaylistDJ     `json:"djs"`
+	SpecialtyShow string           `json:"specialty_show"`
+	Preview       []FlowsheetEntry `json:"preview"`
+}
+
+// PlaylistDJ names one of the DJs credited on a show. DJName may be empty.
+type PlaylistDJ struct {
+	DJID   string `json:"dj_id"`
+	DJName string `json:"dj_name"`
+}
+
 // ScheduleEntry is one recurring show slot. Day is 0-6.
 type ScheduleEntry struct {
 	ID            int     `json:"id"`

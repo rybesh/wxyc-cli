@@ -26,6 +26,7 @@ wxyc labels search "june appal"
 wxyc labels list
 wxyc schedule
 wxyc bin list
+wxyc djs playlists               # your past shows; pass a dj_id for another DJ
 ```
 
 Add `--json` to any command for machine-readable output. The rule is uniform:
@@ -90,7 +91,7 @@ catalog writes regardless — the server returns 403.
   all; approve from the iOS app. The `SignInStrategy` interface is already in
   place for it.
 - OIDC + PKCE as a registered trusted client.
-- Remaining read surface (`djs playlists`, label/genre detail).
+- Remaining read surface (label/genre detail).
 
 ## Development
 
