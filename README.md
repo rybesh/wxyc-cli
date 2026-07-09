@@ -16,8 +16,15 @@ go build -o wxyc .
 ```sh
 wxyc login                       # prompts for email/username + password (hidden)
 wxyc whoami                      # shows your identity and role
+
 wxyc library search --artist "aphex twin"
+wxyc library genres
+wxyc library formats
+wxyc library rotation            # --json keeps the full nested shape
 wxyc flowsheet tail -n 20
+wxyc labels search "june appal"
+wxyc labels list
+wxyc schedule
 wxyc bin list
 ```
 
@@ -80,7 +87,7 @@ catalog writes regardless — the server returns 403.
   all; approve from the iOS app. The `SignInStrategy` interface is already in
   place for it.
 - OIDC + PKCE as a registered trusted client.
-- More read surface (labels, genres, schedule, playlists).
+- Remaining read surface (`djs playlists`, label/genre detail).
 
 ## Development
 

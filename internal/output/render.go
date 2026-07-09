@@ -3,6 +3,7 @@
 package output
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +27,24 @@ func (r Renderer) Emit(jsonValue any, headers []string, rows [][]string) error {
 		return enc.Encode(jsonValue)
 	}
 	return r.table(headers, rows)
+}
+
+// EmitRaw is like Emit but, in JSON mode, passes the server's raw JSON through
+// verbatim (pretty-printed) so agents receive every field even when the table
+// projection shows only a subset. In table mode it behaves exactly like Emit.
+func (r Renderer) EmitRaw(raw []byte, headers []string, rows [][]string) error {
+	if !r.JSON {
+		return r.table(headers, rows)
+	}
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, raw, "", "  "); err != nil {
+		// Not indentable (unexpected content type) — emit as received.
+		_, err := r.Out.Write(raw)
+		return err
+	}
+	buf.WriteByte('\n')
+	_, err := r.Out.Write(buf.Bytes())
+	return err
 }
 
 func (r Renderer) table(headers []string, rows [][]string) error {

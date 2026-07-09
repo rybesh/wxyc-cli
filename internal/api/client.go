@@ -72,6 +72,37 @@ func (c *Client) get(ctx context.Context, path string, query map[string]string, 
 	return nil
 }
 
+// getRaw is like get but returns the response body verbatim, for endpoints
+// whose full shape the CLI passes through to --json without modeling it.
+func (c *Client) getRaw(ctx context.Context, path string, query map[string]string) ([]byte, error) {
+	u := c.BaseURL + path
+	if len(query) > 0 {
+		vals := url.Values{}
+		for k, v := range query {
+			vals.Set(k, v)
+		}
+		u += "?" + vals.Encode()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+
+	res, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return nil, &StatusError{Code: res.StatusCode, Path: path, Body: string(body)}
+	}
+	return body, nil
+}
+
 // post sends a JSON body to path. out may be nil when the response is ignored.
 func (c *Client) post(ctx context.Context, path string, in, out any) error {
 	body, err := json.Marshal(in)

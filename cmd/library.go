@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/rybesh/wxyc-cli/internal/api"
@@ -9,8 +11,98 @@ import (
 
 func newLibraryCmd(app *App) *cobra.Command {
 	lib := &cobra.Command{Use: "library", Short: "Query the music library catalog"}
-	lib.AddCommand(newLibrarySearchCmd(app))
+	lib.AddCommand(
+		newLibrarySearchCmd(app),
+		newGenresCmd(app),
+		newFormatsCmd(app),
+		newRotationCmd(app),
+	)
 	return lib
+}
+
+func newGenresCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "genres",
+		Short: "List the genre catalog",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			genres, err := app.client.Genres(cmd.Context())
+			if err != nil {
+				return err
+			}
+			rows := make([][]string, 0, len(genres))
+			for _, g := range genres {
+				rows = append(rows, []string{strconv.Itoa(g.ID), g.GenreName, strconv.Itoa(g.Plays)})
+			}
+			return app.render.Emit(genres, []string{"ID", "GENRE", "PLAYS"}, rows)
+		},
+	}
+}
+
+func newFormatsCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "formats",
+		Short: "List the media formats",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			formats, err := app.client.Formats(cmd.Context())
+			if err != nil {
+				return err
+			}
+			rows := make([][]string, 0, len(formats))
+			for _, f := range formats {
+				rows = append(rows, []string{strconv.Itoa(f.ID), f.FormatName})
+			}
+			return app.render.Emit(formats, []string{"ID", "FORMAT"}, rows)
+		},
+	}
+}
+
+func newRotationCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "rotation",
+		Short: "Show the current rotation",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			raw, err := app.client.Rotation(cmd.Context())
+			if err != nil {
+				return err
+			}
+			// Rotation's wire shape is deep; project a table from a generic
+			// decode and pass the full JSON through in --json mode.
+			var items []map[string]any
+			_ = json.Unmarshal(raw, &items)
+			rows := make([][]string, 0, len(items))
+			for _, m := range items {
+				rows = append(rows, []string{
+					field(m, "rotation_bin"),
+					field(m, "artist_name"),
+					field(m, "album_title"),
+					field(m, "record_label"),
+				})
+			}
+			return app.render.EmitRaw(raw, []string{"BIN", "ARTIST", "ALBUM", "LABEL"}, rows)
+		},
+	}
+}
+
+// field formats a value from a generic JSON object as a display string,
+// tolerating nulls and non-string types.
+func field(m map[string]any, key string) string {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
+	}
+	switch t := v.(type) {
+	case string:
+		return t
+	case float64:
+		return strconv.FormatFloat(t, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(t)
+	default:
+		return fmt.Sprintf("%v", t)
+	}
 }
 
 func newLibrarySearchCmd(app *App) *cobra.Command {

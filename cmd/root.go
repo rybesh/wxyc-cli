@@ -45,6 +45,8 @@ func newRoot(app *App) *cobra.Command {
 		newLibraryCmd(app),
 		newFlowsheetCmd(app),
 		newBinCmd(app),
+		newLabelsCmd(app),
+		newScheduleCmd(app),
 	)
 	return root
 }

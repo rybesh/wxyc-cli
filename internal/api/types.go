@@ -45,3 +45,37 @@ type BinItem struct {
 	Label       string `json:"label"`
 	CodeLetters string `json:"code_letters"`
 }
+
+// Genre is a row from the genres catalog.
+type Genre struct {
+	ID          int     `json:"id"`
+	GenreName   string  `json:"genre_name"`
+	Description *string `json:"description"`
+	Plays       int     `json:"plays"`
+	AddDate     string  `json:"add_date"`
+}
+
+// Format is a physical/media format (vinyl, cd, …).
+type Format struct {
+	ID         int    `json:"id"`
+	FormatName string `json:"format_name"`
+	DateAdded  string `json:"date_added"`
+}
+
+// Label is a record label.
+type Label struct {
+	ID            int    `json:"id"`
+	LabelName     string `json:"label_name"`
+	ParentLabelID *int   `json:"parent_label_id"`
+}
+
+// ScheduleEntry is one recurring show slot. Day is 0-6.
+type ScheduleEntry struct {
+	ID            int     `json:"id"`
+	Day           int     `json:"day"`
+	StartTime     string  `json:"start_time"`
+	ShowDuration  int     `json:"show_duration"`
+	SpecialtyID   *int    `json:"specialty_id"`
+	AssignedDJID  *string `json:"assigned_dj_id"`
+	AssignedDJID2 *string `json:"assigned_dj_id2"`
+}

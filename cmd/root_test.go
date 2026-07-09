@@ -77,6 +77,27 @@ func TestWriteGate_EnvUnlockAlsoWorks(t *testing.T) {
 	}
 }
 
+func TestRotation_JSONKeepsFullShape(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/library/rotation" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		w.Write([]byte(`[{"artist_name":"X","rotation_bin":"Heavy","reconciled_identity":{"discogs_artist_id":42}}]`))
+	}))
+	defer srv.Close()
+	t.Setenv("WXYC_API_URL", srv.URL)
+	t.Setenv("WXYC_JWT", "unused")
+
+	out, err := runCLI(t, "library", "rotation", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Nested identity the table never renders must survive in --json.
+	if !strings.Contains(out, "reconciled_identity") || !strings.Contains(out, "42") {
+		t.Errorf("--json dropped nested fields:\n%s", out)
+	}
+}
+
 func TestReadCommand_NeedsNoUnlock(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"entries":[{"id":1,"entry_type":"track","artist_name":"A","track_title":"T","album_title":"Al"}]}`))
