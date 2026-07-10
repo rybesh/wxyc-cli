@@ -12,6 +12,11 @@ import (
 // ErrNoSession indicates no session token is stored for the profile.
 var ErrNoSession = errors.New("no session token; run `wxyc login` first")
 
+// ErrSessionExpired indicates the stored session token was rejected by the
+// token-exchange endpoint (HTTP 401) and is no longer valid. Like ErrNoSession
+// it maps to ExitAuth: the remedy is to run `wxyc login` again.
+var ErrSessionExpired = errors.New("session token rejected; run `wxyc login` again")
+
 // keyringService namespaces the CLI's secrets in the OS keychain.
 const keyringService = "wxyc-cli"
 

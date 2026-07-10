@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -58,7 +59,7 @@ func (p *TokenProvider) refreshLocked(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("reading session token: %w", err)
 	}
 	if session == "" {
-		return "", fmt.Errorf("no session token; run `wxyc login` first")
+		return "", ErrNoSession
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.AuthBase+"/token", nil)
@@ -74,6 +75,11 @@ func (p *TokenProvider) refreshLocked(ctx context.Context) (string, error) {
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 512))
+		if res.StatusCode == http.StatusUnauthorized {
+			// The session token itself was rejected — it has expired or been
+			// revoked. Classify as auth so the CLI exits ExitAuth.
+			return "", fmt.Errorf("%w (HTTP 401): %s", ErrSessionExpired, strings.TrimSpace(string(body)))
+		}
 		return "", fmt.Errorf("token exchange failed: HTTP %d: %s", res.StatusCode, body)
 	}
 

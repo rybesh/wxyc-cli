@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -106,5 +107,36 @@ func TestTokenProvider_ServerError(t *testing.T) {
 	p := newProvider(srv.URL, "sess", time.Now)
 	if _, err := p.Token(context.Background()); err == nil {
 		t.Fatal("Token() = nil error on 401 exchange, want error")
+	}
+}
+
+// A 401 from the token exchange means the stored session token is dead. It must
+// classify as an auth failure (ErrSessionExpired) so the CLI exits ExitAuth and
+// agents know to re-login, rather than as an unclassified error.
+func TestTokenProvider_RejectedSessionIsAuthError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"session expired"}`, http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	p := newProvider(srv.URL, "stale-session", time.Now)
+	_, err := p.Token(context.Background())
+	if !errors.Is(err, ErrSessionExpired) {
+		t.Fatalf("err = %v, want it to wrap ErrSessionExpired", err)
+	}
+}
+
+// An empty stored session is the same "run login first" condition as a missing
+// one, so it must carry ErrNoSession (→ ExitAuth), not a look-alike fmt error.
+func TestTokenProvider_EmptySessionIsErrNoSession(t *testing.T) {
+	p := &TokenProvider{
+		AuthBase: "http://unused.invalid",
+		HTTP:     http.DefaultClient,
+		Session:  func() (string, error) { return "", nil },
+		Skew:     30 * time.Second,
+	}
+	_, err := p.Token(context.Background())
+	if !errors.Is(err, ErrNoSession) {
+		t.Fatalf("err = %v, want it to wrap ErrNoSession", err)
 	}
 }
