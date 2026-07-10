@@ -16,6 +16,9 @@ func newFlowsheetCmd(app *App) *cobra.Command {
 		newFlowsheetAddCmd(app),
 		newFlowsheetMarkerCmd(app, "talkset", "Log a talkset", "Talkset", "talkset"),
 		newFlowsheetMarkerCmd(app, "breakpoint", "Log a breakpoint (top of hour)", "Breakpoint", "breakpoint"),
+		newFlowsheetMoveCmd(app),
+		newFlowsheetEditCmd(app),
+		newFlowsheetRmCmd(app),
 		newFlowsheetEndCmd(app),
 	)
 	return fs
@@ -115,6 +118,125 @@ func newFlowsheetMarkerCmd(app *App, use, short, message, entryType string) *cob
 		Annotations: map[string]string{annMutates: "true", annOp: "flowsheet:" + entryType},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			e, raw, err := app.client.FlowsheetAddMarker(cmd.Context(), message, entryType)
+			if err != nil {
+				return err
+			}
+			return app.render.EmitRaw(raw, entryHeaders, entryResultRows(e))
+		},
+	}
+}
+
+func newFlowsheetMoveCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "move <entry_id> <new_position>",
+		Short: "Reorder a flowsheet entry to a new 1-based position",
+		Args:  cobra.ExactArgs(2),
+		// Mutating: the root PersistentPreRunE blocks this unless writes are unlocked.
+		Annotations: map[string]string{annMutates: "true", annOp: "flowsheet:move"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			entryID, err := strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("entry_id must be an integer: %q", args[0])
+			}
+			newPos, err := strconv.Atoi(args[1])
+			if err != nil {
+				return fmt.Errorf("new_position must be an integer: %q", args[1])
+			}
+			if newPos < 1 {
+				return fmt.Errorf("new_position must be >= 1 (positions are 1-based)")
+			}
+			e, raw, err := app.client.FlowsheetMove(cmd.Context(), entryID, newPos)
+			if err != nil {
+				return err
+			}
+			return app.render.EmitRaw(raw, entryHeaders, entryResultRows(e))
+		},
+	}
+}
+
+func newFlowsheetEditCmd(app *App) *cobra.Command {
+	var track, artist, album, label, message string
+	var albumID, rotationID int
+	var segue, request bool
+	cmd := &cobra.Command{
+		Use:   "edit <entry_id>",
+		Short: "Edit fields of a flowsheet entry",
+		Args:  cobra.ExactArgs(1),
+		// Mutating: the root PersistentPreRunE blocks this unless writes are unlocked.
+		Annotations: map[string]string{annMutates: "true", annOp: "flowsheet:edit"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			entryID, err := strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("entry_id must be an integer: %q", args[0])
+			}
+			// Only send fields whose flags were explicitly changed, so an
+			// unset flag is left alone and a --flag "" clears the field. This
+			// also distinguishes booleans from their zero value.
+			var data api.FlowsheetUpdateFields
+			f := cmd.Flags()
+			changed := false
+			if f.Changed("track") {
+				data.TrackTitle, changed = &track, true
+			}
+			if f.Changed("artist") {
+				data.ArtistName, changed = &artist, true
+			}
+			if f.Changed("album") {
+				data.AlbumTitle, changed = &album, true
+			}
+			if f.Changed("label") {
+				data.RecordLabel, changed = &label, true
+			}
+			if f.Changed("message") {
+				data.Message, changed = &message, true
+			}
+			if f.Changed("album-id") {
+				data.AlbumID, changed = &albumID, true
+			}
+			if f.Changed("rotation-id") {
+				data.RotationID, changed = &rotationID, true
+			}
+			if f.Changed("segue") {
+				data.Segue, changed = &segue, true
+			}
+			if f.Changed("request") {
+				data.RequestFlag, changed = &request, true
+			}
+			if !changed {
+				return fmt.Errorf("no fields to edit: pass at least one field flag")
+			}
+			e, raw, err := app.client.FlowsheetUpdate(cmd.Context(), entryID, data)
+			if err != nil {
+				return err
+			}
+			return app.render.EmitRaw(raw, entryHeaders, entryResultRows(e))
+		},
+	}
+	cmd.Flags().StringVar(&track, "track", "", "track title")
+	cmd.Flags().StringVar(&artist, "artist", "", "artist name")
+	cmd.Flags().StringVar(&album, "album", "", "album title")
+	cmd.Flags().StringVar(&label, "label", "", "record label")
+	cmd.Flags().StringVar(&message, "message", "", "freeform message (marker rows)")
+	cmd.Flags().IntVar(&albumID, "album-id", 0, "library album id")
+	cmd.Flags().IntVar(&rotationID, "rotation-id", 0, "rotation id")
+	cmd.Flags().BoolVar(&segue, "segue", false, "mark as a segue into the next track")
+	cmd.Flags().BoolVar(&request, "request", false, "mark as a listener request")
+	return cmd
+}
+
+func newFlowsheetRmCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "rm <entry_id>",
+		Short: "Remove a flowsheet entry",
+		Args:  cobra.ExactArgs(1),
+		// Mutating: the root PersistentPreRunE blocks this unless writes are unlocked.
+		Annotations: map[string]string{annMutates: "true", annOp: "flowsheet:rm"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			entryID, err := strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("entry_id must be an integer: %q", args[0])
+			}
+			e, raw, err := app.client.FlowsheetDelete(cmd.Context(), entryID)
 			if err != nil {
 				return err
 			}

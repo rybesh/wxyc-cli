@@ -108,6 +108,39 @@ type FlowsheetResult struct {
 	Message    string `json:"message"`
 }
 
+// FlowsheetUpdateFields is the data payload for PATCH /flowsheet. Every field
+// is a pointer so that only flags the caller actually changed are marshalled
+// (omitempty on a pointer drops nil but keeps a set-to-empty-string value),
+// letting the CLI distinguish "clear this field" from "leave it alone". The
+// backend allowlists exactly these keys in pickUpdateEntryFields.
+type FlowsheetUpdateFields struct {
+	ArtistName    *string `json:"artist_name,omitempty"`
+	AlbumTitle    *string `json:"album_title,omitempty"`
+	TrackTitle    *string `json:"track_title,omitempty"`
+	TrackPosition *string `json:"track_position,omitempty"`
+	RecordLabel   *string `json:"record_label,omitempty"`
+	LabelID       *int    `json:"label_id,omitempty"`
+	AlbumID       *int    `json:"album_id,omitempty"`
+	RotationID    *int    `json:"rotation_id,omitempty"`
+	RequestFlag   *bool   `json:"request_flag,omitempty"`
+	Segue         *bool   `json:"segue,omitempty"`
+	Message       *string `json:"message,omitempty"`
+}
+
+// flowsheetUpdateRequest is the PATCH /flowsheet body: the target entry id plus
+// the allowlisted data fields to change.
+type flowsheetUpdateRequest struct {
+	EntryID int                   `json:"entry_id"`
+	Data    FlowsheetUpdateFields `json:"data"`
+}
+
+// flowsheetMoveRequest is the PATCH /flowsheet/play-order body. NewPosition is
+// 1-based.
+type flowsheetMoveRequest struct {
+	EntryID     int `json:"entry_id"`
+	NewPosition int `json:"new_position"`
+}
+
 // BinItem is an album a DJ has saved to their bin (mailbox).
 type BinItem struct {
 	AlbumID     int    `json:"album_id"`
