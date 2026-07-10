@@ -37,6 +37,77 @@ type flowsheetResponse struct {
 	Entries []FlowsheetEntry `json:"entries"`
 }
 
+// StartShowRequest is the POST /flowsheet/join body. DJID must match the
+// authenticated user (the backend 403s otherwise); the CLI fills it from the
+// token. When no show is active this starts one; when a show is live it adds
+// the caller as a co-host. SpecialtyID/ShowName/DJNameOverride are optional.
+type StartShowRequest struct {
+	DJID           string `json:"dj_id"`
+	ShowName       string `json:"show_name,omitempty"`
+	SpecialtyID    *int   `json:"specialty_id,omitempty"`
+	DJNameOverride string `json:"dj_name_override,omitempty"`
+}
+
+// FlowsheetTrack is the POST /flowsheet body for a played track. When AlbumID
+// is set the backend backfills artist/album/label from the library, so the
+// free-text fields may be empty; otherwise ArtistName, AlbumTitle, and
+// TrackTitle are all required by the server.
+type FlowsheetTrack struct {
+	ArtistName  string `json:"artist_name,omitempty"`
+	AlbumTitle  string `json:"album_title,omitempty"`
+	TrackTitle  string `json:"track_title"`
+	RecordLabel string `json:"record_label,omitempty"`
+	AlbumID     *int   `json:"album_id,omitempty"`
+	RotationID  *int   `json:"rotation_id,omitempty"`
+	RequestFlag bool   `json:"request_flag,omitempty"`
+	Segue       bool   `json:"segue,omitempty"`
+}
+
+// flowsheetMarker is the POST /flowsheet body for a non-track entry (talkset,
+// breakpoint, message). EntryType is passed explicitly so a message whose text
+// happens to contain "Talkset"/"Breakpoint" isn't misclassified by the
+// server's content-based inference.
+type flowsheetMarker struct {
+	Message   string `json:"message"`
+	EntryType string `json:"entry_type,omitempty"`
+}
+
+// ShowSession is the response to POST /flowsheet/join and /flowsheet/end.
+// Starting or ending a show echoes the show row (ID set); joining or leaving as
+// a co-host echoes the show_djs row (ShowID set) instead. EffectiveShowID
+// reconciles the two.
+type ShowSession struct {
+	ID          int     `json:"id"`
+	ShowID      int     `json:"show_id"`
+	ShowName    string  `json:"show_name"`
+	PrimaryDJID string  `json:"primary_dj_id"`
+	StartTime   string  `json:"start_time"`
+	EndTime     *string `json:"end_time"`
+}
+
+// EffectiveShowID returns the show id regardless of whether the response was a
+// show row (ID) or a co-host show_djs row (ShowID).
+func (s ShowSession) EffectiveShowID() int {
+	if s.ID != 0 {
+		return s.ID
+	}
+	return s.ShowID
+}
+
+// FlowsheetResult is the projected flowsheet row echoed by the mutating
+// /flowsheet endpoints (POST/PATCH/DELETE). Track rows carry the artist/track
+// fields; marker rows carry Message and leave them empty.
+type FlowsheetResult struct {
+	ID         int    `json:"id"`
+	ShowID     int    `json:"show_id"`
+	PlayOrder  int    `json:"play_order"`
+	EntryType  string `json:"entry_type"`
+	ArtistName string `json:"artist_name"`
+	AlbumTitle string `json:"album_title"`
+	TrackTitle string `json:"track_title"`
+	Message    string `json:"message"`
+}
+
 // BinItem is an album a DJ has saved to their bin (mailbox).
 type BinItem struct {
 	AlbumID     int    `json:"album_id"`

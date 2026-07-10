@@ -1,0 +1,58 @@
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+)
+
+// Each write method returns the decoded echo (for the table confirmation) and
+// the server's raw JSON bytes (for --json passthrough), mirroring the read
+// methods so the two views can't drift.
+
+// FlowsheetStart starts the caller's show, or — if a show is already active —
+// adds the caller as a co-host. Mutating: gated behind --write.
+func (c *Client) FlowsheetStart(ctx context.Context, req StartShowRequest) (ShowSession, []byte, error) {
+	return decodeShowSession(c.postRaw(ctx, "/flowsheet/join", req))
+}
+
+// FlowsheetEnd ends the caller's show, or — if the caller is a co-host rather
+// than the primary DJ — removes them from the show. Mutating: gated behind
+// --write. djID must match the authenticated user.
+func (c *Client) FlowsheetEnd(ctx context.Context, djID string) (ShowSession, []byte, error) {
+	return decodeShowSession(c.postRaw(ctx, "/flowsheet/end", map[string]string{"dj_id": djID}))
+}
+
+// FlowsheetAddTrack appends a played track to the active show's flowsheet.
+// Mutating: gated behind --write. Requires an active show (400 otherwise).
+func (c *Client) FlowsheetAddTrack(ctx context.Context, t FlowsheetTrack) (FlowsheetResult, []byte, error) {
+	return decodeFlowsheetResult(c.postRaw(ctx, "/flowsheet", t))
+}
+
+// FlowsheetAddMarker appends a non-track entry (talkset, breakpoint, message)
+// to the active show's flowsheet. Mutating: gated behind --write.
+func (c *Client) FlowsheetAddMarker(ctx context.Context, message, entryType string) (FlowsheetResult, []byte, error) {
+	return decodeFlowsheetResult(c.postRaw(ctx, "/flowsheet", flowsheetMarker{Message: message, EntryType: entryType}))
+}
+
+func decodeShowSession(raw []byte, err error) (ShowSession, []byte, error) {
+	if err != nil {
+		return ShowSession{}, nil, err
+	}
+	var s ShowSession
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return ShowSession{}, raw, fmt.Errorf("decoding show response: %w", err)
+	}
+	return s, raw, nil
+}
+
+func decodeFlowsheetResult(raw []byte, err error) (FlowsheetResult, []byte, error) {
+	if err != nil {
+		return FlowsheetResult{}, nil, err
+	}
+	var e FlowsheetResult
+	if err := json.Unmarshal(raw, &e); err != nil {
+		return FlowsheetResult{}, raw, fmt.Errorf("decoding flowsheet response: %w", err)
+	}
+	return e, raw, nil
+}
