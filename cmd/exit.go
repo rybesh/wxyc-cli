@@ -29,7 +29,7 @@ func mapExit(err error) int {
 	if errors.As(err, &blocked) {
 		return ExitBlocked
 	}
-	if errors.Is(err, auth.ErrNoSession) {
+	if errors.Is(err, auth.ErrNoSession) || errors.Is(err, auth.ErrSessionExpired) {
 		return ExitAuth
 	}
 	var se *api.StatusError
