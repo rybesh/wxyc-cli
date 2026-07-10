@@ -92,6 +92,34 @@ func (c *Client) getRaw(ctx context.Context, path string, query map[string]strin
 	return body, nil
 }
 
+// postRaw sends a JSON body to path and returns the response body verbatim,
+// for mutating endpoints whose echoed entity the CLI both decodes (for a table
+// confirmation) and passes through to --json. Non-2xx becomes a StatusError.
+func (c *Client) postRaw(ctx context.Context, path string, in any) ([]byte, error) {
+	body, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	res, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	b, _ := io.ReadAll(res.Body)
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return nil, &StatusError{Code: res.StatusCode, Path: path, Body: string(b)}
+	}
+	return b, nil
+}
+
 // post sends a JSON body to path. out may be nil when the response is ignored.
 func (c *Client) post(ctx context.Context, path string, in, out any) error {
 	body, err := json.Marshal(in)
