@@ -10,7 +10,7 @@ type Album struct {
 	ArtistName       string `json:"artist_name"`
 	AlphabeticalName string `json:"alphabetical_name"`
 	AlbumTitle       string `json:"album_title"`
-	Format           string `json:"format"`
+	Format           string `json:"format_name"`
 	Label            string `json:"label"`
 }
 

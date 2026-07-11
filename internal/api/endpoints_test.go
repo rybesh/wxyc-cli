@@ -14,7 +14,7 @@ func TestLibrarySearch(t *testing.T) {
 		}
 		w.Write([]byte(`[
 		  {"id":53951,"code_letters":"AP","code_artist_number":2,"code_number":5,
-		   "artist_name":"Aphex Twin","album_title":"Classics","format":"vinyl"}
+		   "artist_name":"Aphex Twin","album_title":"Classics","format_name":"vinyl"}
 		]`))
 	}))
 	defer srv.Close()
@@ -28,7 +28,7 @@ func TestLibrarySearch(t *testing.T) {
 		t.Fatalf("got %d albums, want 1", len(albums))
 	}
 	a := albums[0]
-	if a.ArtistName != "Aphex Twin" || a.AlbumTitle != "Classics" || a.ID != 53951 {
+	if a.ArtistName != "Aphex Twin" || a.AlbumTitle != "Classics" || a.ID != 53951 || a.Format != "vinyl" {
 		t.Errorf("unexpected album %+v", a)
 	}
 }

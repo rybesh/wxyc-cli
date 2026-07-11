@@ -106,3 +106,10 @@ exchange, transport, session store). `internal/safety` (write gate) and
   `internal/auth/transport_test.go`) and an in-memory `runCLI` helper in
   `cmd/root_test.go` that builds a fresh `App`/root command per test rather
   than a shared global. Table-driven where useful but not forced.
+- **Red-green TDD, always** — including bug fixes. Write (or amend) the test
+  first, run it, and confirm it *fails for the right reason* (red) before
+  touching the code that makes it pass (green). Never write the fix first and
+  backfill the test — a test you didn't watch fail proves nothing. For a bug,
+  the failing test should reproduce the bug via a fixture that mirrors the real
+  server response (e.g. the actual JSON key names), so it would have caught the
+  original defect.
