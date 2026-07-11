@@ -98,6 +98,27 @@ func TestRotation_JSONKeepsFullShape(t *testing.T) {
 	}
 }
 
+func TestLibrarySearch_TableShowsShelfCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/library/" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		w.Write([]byte(`[{"id":1,"code_letters":"DA","code_artist_number":11,"code_number":4,
+		  "artist_name":"Dave","album_title":"Wax","format_name":"vinyl","genre_name":"Jazz"}]`))
+	}))
+	defer srv.Close()
+	t.Setenv("WXYC_API_URL", srv.URL)
+	t.Setenv("WXYC_JWT", "unused")
+
+	out, err := runCLI(t, "library", "search", "--artist", "dave")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "SHELF") || !strings.Contains(out, "Jazz DA 11/4") {
+		t.Errorf("table missing shelf code:\n%s", out)
+	}
+}
+
 func TestReadCommand_NeedsNoUnlock(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"entries":[{"id":1,"entry_type":"track","artist_name":"A","track_title":"T","album_title":"Al"}]}`))

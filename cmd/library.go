@@ -130,7 +130,7 @@ func newLibrarySearchCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return app.render.EmitRaw(raw, []string{"ID", "ARTIST", "ALBUM", "FORMAT"}, albumRows(albums))
+			return app.render.EmitRaw(raw, []string{"ID", "SHELF", "ARTIST", "ALBUM", "FORMAT"}, albumRows(albums))
 		},
 	}
 	cmd.Flags().StringVar(&artist, "artist", "", "artist name")
@@ -142,7 +142,7 @@ func newLibrarySearchCmd(app *App) *cobra.Command {
 func albumRows(albums []api.Album) [][]string {
 	rows := make([][]string, 0, len(albums))
 	for _, a := range albums {
-		rows = append(rows, []string{strconv.Itoa(a.ID), a.ArtistName, a.AlbumTitle, a.Format})
+		rows = append(rows, []string{strconv.Itoa(a.ID), a.ShelfCode(), a.ArtistName, a.AlbumTitle, a.Format})
 	}
 	return rows
 }

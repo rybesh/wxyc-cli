@@ -1,5 +1,7 @@
 package api
 
+import "fmt"
+
 // Album is a row from the library catalog. Fields mirror the backend's
 // /library response; only the subset the CLI renders is modeled.
 type Album struct {
@@ -11,7 +13,24 @@ type Album struct {
 	AlphabeticalName string `json:"alphabetical_name"`
 	AlbumTitle       string `json:"album_title"`
 	Format           string `json:"format_name"`
+	GenreName        string `json:"genre_name"`
 	Label            string `json:"label"`
+}
+
+// ShelfCode renders the album's physical filing location, e.g. "Jazz DA 11/4"
+// (the 4th release by the 11th artist filed under "DA" in the Jazz section).
+// The genre names the section; code_letters/code_artist_number/code_number
+// locate the record within it. Returns "" when the album has no code letters,
+// i.e. no shelf assignment.
+func (a Album) ShelfCode() string {
+	if a.CodeLetters == "" {
+		return ""
+	}
+	code := fmt.Sprintf("%s %d/%d", a.CodeLetters, a.CodeArtistNumber, a.CodeNumber)
+	if a.GenreName == "" {
+		return code
+	}
+	return a.GenreName + " " + code
 }
 
 // FlowsheetEntry is one row of the on-air log. A row is either a played track
