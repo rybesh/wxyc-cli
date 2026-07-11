@@ -52,7 +52,7 @@ func (c *Client) FlowsheetUpdate(ctx context.Context, entryID int, data Flowshee
 // FlowsheetDelete removes an entry, echoing the removed (projected) row.
 // Mutating: gated behind --write. 404s on a double-delete.
 func (c *Client) FlowsheetDelete(ctx context.Context, entryID int) (FlowsheetResult, []byte, error) {
-	return decodeFlowsheetResult(c.deleteRaw(ctx, "/flowsheet", map[string]int{"entry_id": entryID}))
+	return decodeFlowsheetResult(c.deleteRaw(ctx, "/flowsheet", flowsheetDeleteRequest{EntryID: entryID}))
 }
 
 func decodeShowSession(raw []byte, err error) (ShowSession, []byte, error) {

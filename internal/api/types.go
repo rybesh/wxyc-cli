@@ -110,9 +110,12 @@ type FlowsheetResult struct {
 
 // FlowsheetUpdateFields is the data payload for PATCH /flowsheet. Every field
 // is a pointer so that only flags the caller actually changed are marshalled
-// (omitempty on a pointer drops nil but keeps a set-to-empty-string value),
-// letting the CLI distinguish "clear this field" from "leave it alone". The
-// backend allowlists exactly these keys in pickUpdateEntryFields.
+// (omitempty on a pointer drops nil but keeps a set-to-zero value), letting the
+// CLI distinguish "change this field" from "leave it alone". For the string
+// fields this cleanly expresses a clear (a set-to-empty-string pointer sends
+// ""); the int fields can only send 0, not null, so they can reassign an
+// association but not clear one back to null. The backend allowlists exactly
+// these keys in pickUpdateEntryFields.
 type FlowsheetUpdateFields struct {
 	ArtistName    *string `json:"artist_name,omitempty"`
 	AlbumTitle    *string `json:"album_title,omitempty"`
@@ -139,6 +142,12 @@ type flowsheetUpdateRequest struct {
 type flowsheetMoveRequest struct {
 	EntryID     int `json:"entry_id"`
 	NewPosition int `json:"new_position"`
+}
+
+// flowsheetDeleteRequest is the DELETE /flowsheet body: the backend reads
+// req.body.entry_id.
+type flowsheetDeleteRequest struct {
+	EntryID int `json:"entry_id"`
 }
 
 // BinItem is an album a DJ has saved to their bin (mailbox).
