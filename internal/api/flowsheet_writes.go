@@ -35,6 +35,26 @@ func (c *Client) FlowsheetAddMarker(ctx context.Context, message, entryType stri
 	return decodeFlowsheetResult(c.postRaw(ctx, "/flowsheet", flowsheetMarker{Message: message, EntryType: entryType}))
 }
 
+// FlowsheetMove reorders an entry to a new 1-based position. Mutating: gated
+// behind --write. 404s if the target row is gone.
+func (c *Client) FlowsheetMove(ctx context.Context, entryID, newPosition int) (FlowsheetResult, []byte, error) {
+	req := flowsheetMoveRequest{EntryID: entryID, NewPosition: newPosition}
+	return decodeFlowsheetResult(c.patchRaw(ctx, "/flowsheet/play-order", req))
+}
+
+// FlowsheetUpdate edits an entry's allowlisted fields. Mutating: gated behind
+// --write. A fully-empty data payload is a 400; 404s if the row is gone.
+func (c *Client) FlowsheetUpdate(ctx context.Context, entryID int, data FlowsheetUpdateFields) (FlowsheetResult, []byte, error) {
+	req := flowsheetUpdateRequest{EntryID: entryID, Data: data}
+	return decodeFlowsheetResult(c.patchRaw(ctx, "/flowsheet", req))
+}
+
+// FlowsheetDelete removes an entry, echoing the removed (projected) row.
+// Mutating: gated behind --write. 404s on a double-delete.
+func (c *Client) FlowsheetDelete(ctx context.Context, entryID int) (FlowsheetResult, []byte, error) {
+	return decodeFlowsheetResult(c.deleteRaw(ctx, "/flowsheet", flowsheetDeleteRequest{EntryID: entryID}))
+}
+
 func decodeShowSession(raw []byte, err error) (ShowSession, []byte, error) {
 	if err != nil {
 		return ShowSession{}, nil, err

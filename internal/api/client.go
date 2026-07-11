@@ -96,11 +96,33 @@ func (c *Client) getRaw(ctx context.Context, path string, query map[string]strin
 // for mutating endpoints whose echoed entity the CLI both decodes (for a table
 // confirmation) and passes through to --json. Non-2xx becomes a StatusError.
 func (c *Client) postRaw(ctx context.Context, path string, in any) ([]byte, error) {
+	return c.bodyRaw(ctx, http.MethodPost, path, in)
+}
+
+// patchRaw sends a JSON body to path via PATCH and returns the response body
+// verbatim, mirroring postRaw. Used by the mutating flowsheet endpoints that
+// update or reorder an entry and echo the projected row.
+func (c *Client) patchRaw(ctx context.Context, path string, in any) ([]byte, error) {
+	return c.bodyRaw(ctx, http.MethodPatch, path, in)
+}
+
+// deleteRaw sends a JSON body to path via DELETE and returns the response body
+// verbatim. DELETE-with-body is unusual but the backend reads req.body.entry_id;
+// http.NewRequestWithContext derives GetBody from the *bytes.Reader, so the auth
+// Transport's 401-retry rewind still works.
+func (c *Client) deleteRaw(ctx context.Context, path string, in any) ([]byte, error) {
+	return c.bodyRaw(ctx, http.MethodDelete, path, in)
+}
+
+// bodyRaw is the shared implementation behind postRaw/patchRaw/deleteRaw: it
+// marshals in as JSON, sends it with the given method, and returns the response
+// body verbatim. Non-2xx becomes a StatusError.
+func (c *Client) bodyRaw(ctx context.Context, method, path string, in any) ([]byte, error) {
 	body, err := json.Marshal(in)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

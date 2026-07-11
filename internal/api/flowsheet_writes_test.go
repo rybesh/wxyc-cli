@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/rybesh/wxyc-cli/internal/auth"
 )
 
 // captureServer records the method, path, and decoded body of the single
@@ -159,6 +161,145 @@ func TestFlowsheetAddMarker_PostsMessageAndType(t *testing.T) {
 	}
 	if e.EntryType != "talkset" {
 		t.Errorf("result entry_type = %q, want talkset", e.EntryType)
+	}
+}
+
+func TestFlowsheetMove_PatchesPlayOrder(t *testing.T) {
+	srv, got := captureServer(t, `{"id":501,"entry_type":"track","play_order":2}`)
+	c := newTestClient(srv.URL)
+
+	e, _, err := c.FlowsheetMove(context.Background(), 501, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Method != http.MethodPatch || got.Path != "/flowsheet/play-order" {
+		t.Errorf("request = %s %s, want PATCH /flowsheet/play-order", got.Method, got.Path)
+	}
+	// iOS is the first real consumer of this endpoint, so assert the exact keys.
+	if got.Body["entry_id"] != float64(501) || got.Body["new_position"] != float64(2) {
+		t.Errorf("body = %v, want entry_id 501 / new_position 2", got.Body)
+	}
+	if e.ID != 501 {
+		t.Errorf("result id = %d, want 501", e.ID)
+	}
+}
+
+func TestFlowsheetUpdate_PatchesChangedFields(t *testing.T) {
+	srv, got := captureServer(t, `{"id":501,"entry_type":"track","artist_name":"Boards"}`)
+	c := newTestClient(srv.URL)
+
+	artist := "Boards"
+	segue := true
+	e, _, err := c.FlowsheetUpdate(context.Background(), 501, FlowsheetUpdateFields{
+		ArtistName: &artist, Segue: &segue,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Method != http.MethodPatch || got.Path != "/flowsheet" {
+		t.Errorf("request = %s %s, want PATCH /flowsheet", got.Method, got.Path)
+	}
+	if got.Body["entry_id"] != float64(501) {
+		t.Errorf("entry_id = %v, want 501", got.Body["entry_id"])
+	}
+	data, ok := got.Body["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("data = %v, want object", got.Body["data"])
+	}
+	if data["artist_name"] != "Boards" || data["segue"] != true {
+		t.Errorf("data = %v, want artist_name/segue set", data)
+	}
+	// Unset fields must be omitted so the server leaves them alone.
+	for _, k := range []string{"album_title", "track_title", "request_flag", "message"} {
+		if _, ok := data[k]; ok {
+			t.Errorf("unset field %q leaked into data: %v", k, data)
+		}
+	}
+	if e.ArtistName != "Boards" {
+		t.Errorf("result artist = %q, want Boards", e.ArtistName)
+	}
+}
+
+func TestFlowsheetUpdate_SendsEmptyStringToClear(t *testing.T) {
+	srv, got := captureServer(t, `{"id":501}`)
+	c := newTestClient(srv.URL)
+
+	empty := ""
+	if _, _, err := c.FlowsheetUpdate(context.Background(), 501, FlowsheetUpdateFields{
+		RecordLabel: &empty,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	data := got.Body["data"].(map[string]any)
+	if v, ok := data["record_label"]; !ok || v != "" {
+		t.Errorf("record_label = %v (present=%v), want cleared to empty string", v, ok)
+	}
+}
+
+func TestFlowsheetDelete_DeletesWithBody(t *testing.T) {
+	srv, got := captureServer(t, `{"id":501,"entry_type":"track","artist_name":"Boards"}`)
+	c := newTestClient(srv.URL)
+
+	e, _, err := c.FlowsheetDelete(context.Background(), 501)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Method != http.MethodDelete || got.Path != "/flowsheet" {
+		t.Errorf("request = %s %s, want DELETE /flowsheet", got.Method, got.Path)
+	}
+	if got.Body["entry_id"] != float64(501) {
+		t.Errorf("body = %v, want entry_id 501", got.Body)
+	}
+	if e.ID != 501 {
+		t.Errorf("result id = %d, want 501", e.ID)
+	}
+}
+
+// TestFlowsheetDelete_RewindsBodyOn401 exercises the unusual DELETE-with-body
+// path through the auth Transport: a 401 on the first attempt must be retried
+// with the body replayed via GetBody, not sent empty.
+func TestFlowsheetDelete_RewindsBodyOn401(t *testing.T) {
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(b))
+		if len(bodies) == 1 {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":501}`))
+	}))
+	defer srv.Close()
+
+	c := &Client{BaseURL: srv.URL, HTTP: &http.Client{Transport: &auth.Transport{
+		Token:   func(context.Context) (string, error) { return "t", nil },
+		Refresh: func(context.Context) (string, error) { return "t2", nil },
+	}}}
+
+	if _, _, err := c.FlowsheetDelete(context.Background(), 501); err != nil {
+		t.Fatal(err)
+	}
+	if len(bodies) != 2 {
+		t.Fatalf("got %d requests, want 2 (401 then retry)", len(bodies))
+	}
+	if bodies[0] == "" || bodies[0] != bodies[1] {
+		t.Errorf("retry body = %q, want replay of %q", bodies[1], bodies[0])
+	}
+}
+
+func TestFlowsheetWrite_404Surfaces(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("Not Found"))
+	}))
+	defer srv.Close()
+	c := newTestClient(srv.URL)
+
+	_, _, err := c.FlowsheetDelete(context.Background(), 999)
+	var se *StatusError
+	if !errors.As(err, &se) || se.Code != http.StatusNotFound {
+		t.Fatalf("err = %v, want StatusError 404", err)
 	}
 }
 
